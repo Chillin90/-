@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Temperature and Soil Temperature Statistics Visualization</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.3.3/echarts.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+</head>
+<body>
+    <div id="temperatureStats">
+        <p>空气最高温度: <span id="maxAirTemp">0°C </span> 空气最低温度: <span id="minAirTemp">0°C</span></p>
+        <p>土壤最高温度: <span id="maxSoilTemp">0°C</span> 土壤最低温度: <span id="minSoilTemp">0°C</span></p>
+    </div>
+    
+    <div id="myChart" style="width: 600px;height: 400px;"></div>
+    <script>
+        var myChart = echarts.init(document.getElementById('myChart'));
+        var temperatureData = [];
+        var soilTemperatureData = [];
+
+        function addData(data) {
+            temperatureData.push([data.timestamp, data.temperature]);
+            soilTemperatureData.push([data.timestamp, data.soil_temperature]);
+            myChart.setOption({
+                xAxis: {
+                    data: temperatureData.map(item => item[0])
+                },
+                series: [{
+                    name: '空气温度',
+                    data: temperatureData
+                }, {
+                    name: '土壤温度',
+                    data: soilTemperatureData
+                }]
+            });
+            // updateTemperatureStats();
+        }
+
+        function updateTemperatureStats() {
+            if (temperatureData.length > 0) {
+                var maxTemperature = Math.max(...temperatureData.map(item => item[1]));
+                var minTemperature = Math.min(...temperatureData.map(item => item[1]));
+                document.getElementById('maxAirTemp').textContent = maxTemperature.toFixed(2) + '°C';
+                document.getElementById('minAirTemp').textContent = minTemperature.toFixed(2) + '°C';
+            }
+
+            if (soilTemperatureData.length > 0) {
+                var maxSoilTemperature = Math.max(...soilTemperatureData.map(item => item[1]));
+                var minSoilTemperature = Math.min(...soilTemperatureData.map(item => item[1]));
+                document.getElementById('maxSoilTemp').textContent = maxSoilTemperature.toFixed(2) + '°C';
+                document.getElementById('minSoilTemp').textContent = minSoilTemperature.toFixed(2) + '°C';
+            }
+            }
+            
+            
+
+        var option = {
+            title: {
+                text: '空气和土壤温度统计',
+                subtext: '实时数据',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            legend: {
+                data: ['空气温度', '土壤温度'],
+                top: 'bottom'
+            },
+            xAxis: {
+                type: 'category',
+                data: []
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [
+                {
+                    name: '空气温度',
+                    type: 'line',
+                    data: [],
+                    markLine: {
+                        silent: true,
+                        data: [{type: 'average', name: '平均值'}]
+                    }
+                },
+                {
+                    name: '土壤温度',
+                    type: 'line',
+                    data: [],
+                    markLine: {
+                        silent: true,
+                        data: [{type: 'average', name: '平均值'}]
+                    }
+                }
+            ]
+        };
+
+        myChart.setOption(option);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            fetch('http://127.0.0.1:5000/get-stored-data').then(response => response.json()).then(storedData => {
+                console.log('Stored data:', storedData);
+                storedData.forEach(function(data) {
+                    addData({
+                        timestamp: data.timestamp,
+                        temperature: data.temperature,
+                        soil_temperature: data.soil_temperature || null // Handle null if no soil temperature
+                    });
+                });
+            }).catch(error => {
+                console.error('Error fetching stored data:', error);
+            });
+
+            var socket = io.connect('http://127.0.0.1:5000/get-stored-data');
+            socket.on('update_data', function(data) {
+                addData(data);
+            });
+        });
+    </script>
+</body>
+</html>
+
+
